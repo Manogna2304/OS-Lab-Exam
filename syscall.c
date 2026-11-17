@@ -84,6 +84,8 @@ argstr(int n, char **pp)
 
 extern int sys_chdir(void);
 extern int sys_close(void);
+extern int sys_mprotect(void);
+extern int sys_munprotect(void);
 extern int sys_dup(void);
 extern int sys_exec(void);
 extern int sys_exit(void);
@@ -103,10 +105,8 @@ extern int sys_unlink(void);
 extern int sys_wait(void);
 extern int sys_write(void);
 extern int sys_uptime(void);
-extern int sys_memstats(void);
-extern int sys_vtop(void);
-extern int sys_pageinfo(void);
-extern int sys_setreadonly(void);
+extern int sys_set_priority(void);
+
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
 [SYS_exit]    sys_exit,
@@ -129,10 +129,9 @@ static int (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
-[SYS_memstats]     sys_memstats,
-[SYS_vtop]         sys_vtop,
-[SYS_pageinfo]     sys_pageinfo,
-[SYS_setreadonly]  sys_setreadonly,
+[SYS_mprotect]   sys_mprotect,
+[SYS_munprotect] sys_munprotect,
+[SYS_set_priority] sys_set_priority,
 };
 
 void
