@@ -7,9 +7,6 @@
 #include "mmu.h"
 #include "proc.h"
 
-// Assignment 10: Virtual memory page table access
-extern pte_t *walkpgdir(pde_t *pgdir, const void *va, int alloc);
-
 int
 sys_fork(void)
 {
@@ -92,92 +89,57 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
-
-// Assignment 10: Q1
 int
-sys_memstats(void)
+sys_mprotect(void)
 {
-  memstats();
-  return 0;
-}
+  int addr, len;
 
-// Assignment 10: Q2
-int
-sys_vtop(void)
-{
-  int va;
-  pte_t *pte;
-
-  if(argint(0, &va) < 0)
+  if(argint(0, &addr) < 0 || argint(1, &len) < 0)
     return -1;
 
-  pte = walkpgdir(myproc()->pgdir, (char*)va, 0);
-
-  if(pte == 0 || !(*pte & PTE_P)) {
-    cprintf("Invalid or unmapped virtual address: %x\n", va);
-    return -1;
-  }
-
-  uint pa = PTE_ADDR(*pte) | (va & (PGSIZE - 1));
-
-  cprintf("Virtual Address  : %x\n", va);
-  cprintf("Physical Address : %x\n", pa);
-
-  return pa;
-}
-
-// Assignment 10: Q3 - Display page information
-int
-sys_pageinfo(void)
-{
-  int va;
-  pte_t *pte;
-
-  if(argint(0, &va) < 0)
+  if(addr < 0 || len <= 0)
     return -1;
 
-  pte = walkpgdir(myproc()->pgdir, (char*)va, 0);
-
-  if(pte == 0 || !(*pte & PTE_P)) {
-    cprintf("Page is not mapped: %x\n", va);
-    return -1;
-  }
-
-  cprintf("\n--- PAGE INFORMATION ---\n");
-  cprintf("Virtual Address : %x\n", va);
-  cprintf("Physical Frame  : %x\n", PTE_ADDR(*pte) >> 12);
-  cprintf("Present (P)     : %d\n", !!(*pte & PTE_P));
-  cprintf("Writable (W)    : %d\n", !!(*pte & PTE_W));
-  cprintf("User (U)        : %d\n", !!(*pte & PTE_U));
-
-  return 0;
-}
-
-
-// Assignment 10: Q3 - Set page to read-only
-int
-sys_setreadonly(void)
-{
-  int va;
-  pte_t *pte;
-
-  if(argint(0, &va) < 0)
+  if((uint)addr > myproc()->sz ||
+     (uint)len > (myproc()->sz - (uint)addr) / PGSIZE)
     return -1;
 
-  pte = walkpgdir(myproc()->pgdir, (char*)va, 0);
-
-  if(pte == 0 || !(*pte & PTE_P)) {
-    cprintf("Cannot protect unmapped page: %x\n", va);
+  if(protect_range(myproc()->pgdir, (uint)addr, len, 0) < 0)
     return -1;
-  }
 
-  // Remove write permission.
-  *pte &= ~PTE_W;
-
-  // Flush the TLB to apply the new permissions.
   lcr3(V2P(myproc()->pgdir));
-
-  cprintf("Page at virtual address %x is now READ-ONLY\n", va);
-
   return 0;
+}
+
+int
+sys_munprotect(void)
+{
+  int addr, len;
+
+  if(argint(0, &addr) < 0 || argint(1, &len) < 0)
+    return -1;
+
+  if(addr < 0 || len <= 0)
+    return -1;
+
+  if((uint)addr > myproc()->sz ||
+     (uint)len > (myproc()->sz - (uint)addr) / PGSIZE)
+    return -1;
+
+  if(protect_range(myproc()->pgdir, (uint)addr, len, 1) < 0)
+    return -1;
+
+  lcr3(V2P(myproc()->pgdir));
+  return 0;
+}
+
+int
+sys_set_priority(void)
+{
+  int pid, priority;
+
+  if(argint(0, &pid) < 0 || argint(1, &priority) < 0)
+    return -1;
+
+  return set_priority(pid, priority);
 }
