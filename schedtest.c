@@ -1,18 +1,47 @@
-#include<stdio.c>
-#include<stdlib.c>
-#include<spinlock.c>
+#include "types.h"
+#include "stat.h"
+#include "user.h"
 
-int main(){
-    for(pid = 1;pid <max(pid); pid++){
-        fork();
-    child1, child2, child3;
+int
+main(void)
+{
+  int pid[3];
+  int priorities[3] = {5, 10, 15};
+  int i, j;
 
-    child1 set_priority(pid, 5);
-    child2 set_priority(pid, 10);
-    child3 set_priority(pid, 15);
-   int count = 0; 
-count++;
- 
-printf(priority, "finished");
- return;
+  printf(1, "\nQ2: PRIORITY SCHEDULER TEST\n");
+
+  set_priority(getpid(), 1);
+
+  printf(1, "Parent priority set to 1\n");
+
+  for(i = 0; i < 3; i++) {
+    pid[i] = fork();
+
+    if(pid[i] == 0) {
+      for(j = 0; j < 20000000; j++) {
+        // CPU-bound workload
+      }
+
+      printf(1, "Child with priority %d finished\n",
+             priorities[i]);
+
+      exit();
+    }
+
+    if(pid[i] < 0) {
+      printf(1, "Fork failed\n");
+      exit();
+    }
+
+    set_priority(pid[i], priorities[i]);
+  }
+
+  for(i = 0; i < 3; i++)
+    wait();
+
+  printf(1, "Done\n");
+
+  exit();
 }
+
