@@ -75,6 +75,7 @@ allocproc(void)
 {
   struct proc *p;
   char *sp;
+
   acquire(&ptable.lock);
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
@@ -87,6 +88,7 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->priority = 10;
 
   release(&ptable.lock);
 
@@ -322,28 +324,28 @@ void
 scheduler(void)
 {
   struct proc *p;
+  struct proc *best;
   struct cpu *c = mycpu();
-  c->proc = 0;
 
-  for(;;){
-    // Enable interrupts on this processor.
+  c->proc = 0;
+  
+ for(;;) {
     sti();
 
- int priority;
- int min_priority = 20;
-  if(priority < min_priority){
-     min_priority = priority;
-    }
-}
-    // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
-        continue;
 
-      // Switch to chosen process.  It is the process's job
-      // to release ptable.lock and then reacquire it
-      // before jumping back to us.
+    best = 0;
+
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+      if(p->state == RUNNABLE) {
+        if(best == 0 || p->priority < best->priority)
+          best = p;
+      }
+    }
+
+    if(best != 0) {
+      p = best;
+
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
@@ -351,12 +353,10 @@ scheduler(void)
       swtch(&(c->scheduler), p->context);
       switchkvm();
 
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
       c->proc = 0;
     }
-    release(&ptable.lock);
 
+    release(&ptable.lock);
   }
 }
 
@@ -512,7 +512,7 @@ procdump(void)
   [UNUSED]    "unused",
   [EMBRYO]    "embryo",
   [SLEEPING]  "sleep ",
-  [RUNNABLE]  "runnable",
+  [RUNNABLE]  "runble",
   [RUNNING]   "run   ",
   [ZOMBIE]    "zombie"
   };
@@ -537,17 +537,27 @@ procdump(void)
     cprintf("\n");
   }
 }
+int
+set_priority(int pid, int priority)
+{
+  struct proc *p;
+  int old_priority = -1;
 
+  if(priority < 1 || priority > 20)
+    return -1;
 
-int set_priority(int pid, int priority){
-   acquire(&ptable.lock);
-   for(int p = pid; p < max(pid); p++){
-        if( priority>20 || priority < 1){
-            return -1;
-          }
-        else
-            return priority;
-   }
-   release(&ptable.lock);
-   return -1;
+  acquire(&ptable.lock);
+
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    if(p->pid == pid && p->state != UNUSED) {
+      old_priority = p->priority;
+      p->priority = priority;
+      break;
+    }
+  }
+
+  release(&ptable.lock);
+
+  return old_priority;
 }
+
