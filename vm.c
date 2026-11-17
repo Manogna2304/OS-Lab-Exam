@@ -32,7 +32,7 @@ seginit(void)
 // Return the address of the PTE in page table pgdir
 // that corresponds to virtual address va.  If alloc!=0,
 // create any required page table pages.
-pte_t *
+static pte_t *
 walkpgdir(pde_t *pgdir, const void *va, int alloc)
 {
   pde_t *pde;
@@ -392,3 +392,33 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
 //PAGEBREAK!
 // Blank page.
 
+int
+protect_range(pde_t *pgdir, uint addr, int len, int writable)
+{
+  pte_t *pte;
+  uint i;
+
+  if(addr % PGSIZE != 0 || len <= 0)
+    return -1;
+
+  if((uint)len > (0xffffffffU - addr) / PGSIZE)
+    return -1;
+
+  for(i = 0; i < (uint)len; i++) {
+    pte = walkpgdir(pgdir, (char*)(addr + i * PGSIZE), 0);
+
+    if(pte == 0 || !(*pte & PTE_P))
+      return -1;
+  }
+
+  for(i = 0; i < (uint)len; i++) {
+    pte = walkpgdir(pgdir, (char*)(addr + i * PGSIZE), 0);
+
+    if(writable)
+      *pte |= PTE_W;
+    else
+      *pte &= ~PTE_W;
+  }
+
+  return 0;
+}
